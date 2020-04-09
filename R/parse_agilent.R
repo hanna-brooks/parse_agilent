@@ -117,3 +117,57 @@ parse_agilent_spectrum_csv <- function(filename){
     names(raw.df)[1:2] <- c('mz', 'intensity')	
     return(raw.df)
 }
+
+#' Parse the oddly formatted .csv files exported by Agilent's MassHunter software into an R data frame.
+#'
+#' @param filename A string with the path of the relevant .csv file.
+#' @return A data frame with columns "file", "metadata", "time" and "intensity".
+#' 
+#' @export
+parse_agilent_icpms_csv <- function(filename)
+{
+	#require dependnecies
+	require(stringr)
+	require(data.table)
+	
+	#read file and count the lines
+    raw.text <- readLines(filename)
+    n.lines <- length(raw.text)
+    
+    # line 4 has the actual headers.  lines 1-3 have metadata
+    header.lines <- 1:3
+    data.lines <- 4:(n.lines-3)
+	
+	#break out the text input 
+	# reformat for use of the much-faster data.table::fread() function
+	raw.text.input <- paste0(raw.text[data.lines], collapse = '\n')
+	raw.df <- fread(input = raw.text.input, 
+                sep = ",", 
+                header = T)
+	
+	#break out the text input
+	raw.metadata.batch <- paste0(raw.text[header.lines], collapse = '\n')
+	
+	#extract the datetime string 
+	#Date Format YYYY-MM-DD HH:MM:SS
+	raw.metadata.rawDateTime <- str_extract(raw.metadata.batch, "\\d{4}[-]\\d{2}[-]\\d{2}[ ]\\d{2}[:]\\d{2}:\\d{2}")
+	#convert datetime to POSIXct, assuming local time zone
+	raw.metadata.dateTime <- as.POSIXct(raw.metadata.rawDateTime)
+	#strip time data to get date
+	raw.metadata.date <- as.Date(raw.metadata.dateTime)
+	
+	#origional pc's path in first line of file:  [PATH]\\[SAMPLENAME].b\\[BATCHNAME].d
+	#extract batch name from path saved in file
+	raw.metadata.batchName <- str_extract(raw.metadata.batch, "(?<=\\.b[:punct:])[:graph:]+?(?=\\.d)")
+	#extract sample name from path saved in file
+	raw.metadata.sampleName <- str_extract(raw.metadata.batch, "\\d{8}.+?(?=\\.b)")
+	
+	#write metadata into data frame, consider returning this in another format.
+	raw.df$date <- raw.metadata.date
+	raw.df$dateTime <- raw.metadata.dateTime
+	raw.df$batchName <- raw.metadata.batchName
+	raw.df$sampleName <- raw.metadata.sampleName
+	
+	#return the dataframe
+    return(raw.df)
+}
