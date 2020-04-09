@@ -31,4 +31,8 @@ head(cgrams.df)
 # on spectra
 spectra.df <- parse_agilent_spectrum_csv()
 head(spectra.df)
+
+# on icpms
+icpms.df <- parse_agilent_icpms_csv()
+head(icpms.df)
 ```
